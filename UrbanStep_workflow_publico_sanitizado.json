@@ -1,0 +1,2412 @@
+{
+  "name": "UrbanStep - Agente Conversacional IA",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -1264,
+        -240
+      ],
+      "id": "02e1ae16-1157-4160-8baa-218cc6c53a66",
+      "name": "01 - Recibir mensaje Telegram Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9bfdb864-937e-4ee2-a70a-5b61cc6cc1b7",
+              "leftValue": "={{ $json.id.toString() }}",
+              "rightValue": "={{ $json.id }}\n",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        -240
+      ],
+      "id": "53b67e4e-a454-40e9-b0e6-c2aa8687a693",
+      "name": "If. 04 - ¿Existe el cliente?"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "mensajes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('03 - Buscar cliente en Supabase').first().json.id }}"
+            },
+            {
+              "fieldId": "canal",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "direccion",
+              "fieldValue": "entrante"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "={{ $('02 - Preparar datos del cliente').first().json.Mensaje }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        -256
+      ],
+      "id": "df80affe-77f3-4ff5-9584-70dc575c2561",
+      "name": "Create a row 05 - Registrar mensaje entrante"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4b76951c-099b-474f-9cc2-2bcd8ee985bd",
+              "name": "historial_conversacion",
+              "value": "={{ $input.all().map(item => item.json.contenido).join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "8a71fc6f-cb2e-4e19-bb8f-10a25606fe2f",
+              "name": "=historial_compras",
+              "value": "={{ $('06B - Buscar compras anteriores del cliente').isExecuted ? ($('06B - Buscar compras anteriores del cliente').all().map(item => 'Producto: ' + item.json.producto + ' | Categoría: ' + item.json.categoria + ' | Talle: ' + item.json.talle + ' | Fecha: ' + item.json.fecha_compra + ' | Canal: ' + item.json.canal_venta + ' | Monto: ' + item.json.monto).join('\\n') || 'No hay compras anteriores registradas.') : 'No hay compras anteriores registradas.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        192,
+        -256
+      ],
+      "id": "ed126c46-1317-4ff0-b169-974f97a68ec3",
+      "name": "Edit Fields 07 - Preparar historial conversación",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "Gemini 3 Flash Preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Sos el asistente virtual de UrbanStep, una tienda de zapatillas.\n\nLeé el último mensaje del cliente y respondé directamente como si estuvieras conversando con él por Telegram.\n\nReglas:\n- Respondé en español, con tono amable, natural y breve.\n- Si el cliente hace una consulta general, preguntale qué modelo o talle le interesa.\n- Si quiere comprar, ayudalo a avanzar con la compra.\n- Si reclama por un producto, respondé con empatía y orientalo hacia atención posventa.\n- No inventes precios, stock ni características de productos.\n- No afirmes que un producto está disponible en stock basándote únicamente en compras anteriores.\n- Utilizá el historial de compras para personalizar la respuesta cuando sea relevante.\n- Si el cliente quiere repetir una compra anterior, podés mencionar el modelo y talle registrados y preguntarle si desea el mismo talle.\n- Si el historial de compras está vacío o indica que no hay compras registradas, no inventes antecedentes de compra.\n- Diferenciá el historial de conversación del historial de compras.\n- Usá los mensajes anteriores como contexto, pero respondé únicamente al último mensaje entrante del cliente. No respondas mensajes anteriores ni repitas respuestas ya enviadas.\n- No muestres análisis internos, intención, prioridad, motivo ni acciones recomendadas.\n- Devolvé únicamente el mensaje que recibirá el cliente, sin títulos ni explicaciones.\n\nHistorial de conversación:\n{{ $json.historial_conversacion }}\n\nHistorial de compras del cliente:\n{{ $json.historial_compras }}\n\nÚltimo mensaje del cliente:\n{{ $('01 - Recibir mensaje Telegram Trigger').first().json.message.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        -256
+      ],
+      "id": "9e4c6595-8bb7-47bf-8c38-56917b1dd68d",
+      "name": "Message a model 08 - Generar respuesta con Gemini"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('01 - Recibir mensaje Telegram Trigger').first().json.message.chat.id }}",
+        "text": "={{ $('Message a model 08 - Generar respuesta con Gemini').first().json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1392,
+        480
+      ],
+      "id": "ab739b49-3bf8-4b7e-97c7-dab146860347",
+      "name": "Send a text message 09 - Enviar respuesta por Telegram"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "mensajes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $if($(\"05A - Crear cliente nuevo\").isExecuted, $(\"05A - Crear cliente nuevo\").first().json.id, $(\"03 - Buscar cliente en Supabase\").first().json.id) }}"
+            },
+            {
+              "fieldId": "canal",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "direccion",
+              "fieldValue": "saliente"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "={{ $('Message a model 08 - Generar respuesta con Gemini').first().json.content.parts[0].text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        464
+      ],
+      "id": "bf4caa08-1fa5-4853-9cc2-53b810998eb4",
+      "name": "Create a row 10 - Registrar respuesta saliente"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "Gemini 3 Flash Preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analizá el historial de conversación y el contexto de compras verificadas del cliente de UrbanStep para determinar su situación comercial actual.\n\nDevolvé únicamente un objeto JSON válido, sin Markdown ni explicaciones, con exactamente estas siete claves y valores:\n\n{\n  \"mensaje_resumen\": \"resumen breve de la consulta actual\",\n  \"sentimiento\": \"positivo, neutral o negativo\",\n  \"intencion\": \"consulta_general, consulta_producto, intencion_compra, reclamo o seguimiento\",\n  \"etapa_funnel\": \"descubrimiento, consideracion, decision o posventa\",\n  \"objecion\": \"objeción detectada o cadena vacía si no existe\",\n  \"prioridad\": \"baja, media o alta\",\n  \"accion_recomendada\": \"próxima acción concreta para el equipo comercial\"\n}\n\n## Reglas de clasificación\n\n1. Cliente exploratorio: solicita información general y todavía no muestra intención clara de compra. Usá intención \"consulta_general\" o \"consulta_producto\", según corresponda, y etapa_funnel \"descubrimiento\".\n\n2. Cliente que evalúa opciones: compara modelos, precios, talles, marcas, disponibilidad u otras características sin haber decidido comprar. Usá intención \"consulta_producto\" y etapa_funnel \"consideracion\".\n\n3. Cliente listo para comprar: expresa claramente que quiere comprar, realizar un pedido, reservar un producto o avanzar para concretar la compra. Usá intención \"intencion_compra\", etapa_funnel \"decision\" y prioridad \"alta\".\n\n4. Cliente recurrente: si existen compras anteriores verificadas, considerá los productos, fechas, canales y montos disponibles. Si consulta por una compra anterior, recomendá una acción pertinente. No supongas que quiere comprar nuevamente si no lo expresa.\n\n5. Cliente con reclamo: expresa disconformidad con un producto, pedido o atención. Usá intención \"reclamo\", sentimiento \"negativo\", etapa_funnel \"posventa\" y prioridad \"alta\". Recomendá una acción concreta de atención posventa, priorizando resolver el problema antes de ofrecer una venta. No prometas garantías, reembolsos ni soluciones que no estén confirmadas en los datos disponibles.\n\n6. Seguimiento: usá intención \"seguimiento\" cuando el mensaje actual corresponda a una consulta posterior o a la continuación de una gestión previa que no encaje mejor en las categorías anteriores.\n\n## Reglas para distinguir consultas de intención de compra\n\n- Si el cliente solamente pregunta qué modelos hay disponibles, consulta por stock, precios, talles o características, usá \"consulta_producto\" o \"consulta_general\", según corresponda. No uses \"intencion_compra\" solo porque repite preguntas.\n- Usá \"intencion_compra\" únicamente cuando el cliente exprese claramente que quiere comprar, realizar un pedido, reservar un producto o avanzar para concretar la compra.\n- Preguntar por modelos, pedir un catálogo o consultar precios no significa, por sí solo, que el cliente haya decidido comprar.\n- Si el cliente pregunta cómo realizar un pedido o manifiesta claramente que quiere concretar una compra, clasificá la intención como \"intencion_compra\", la etapa como \"decision\" y la prioridad como \"alta\".\n- Si el cliente compara opciones sin decidirse a comprar, usá etapa_funnel \"consideracion\" y una intención distinta de \"intencion_compra\".\n- Basá la clasificación en el mensaje más reciente del cliente y en el contexto relevante del historial. No mantengas automáticamente una intención anterior si la consulta actual cambió.\n- No confundas la etapa del embudo con la intención: un cliente puede estar en \"consideracion\" y tener intención \"consulta_producto\", sin haber decidido comprar.\n- Si el historial contiene mensajes del asistente, no los interpretes como si fueran afirmaciones del cliente.\n\n## Reglas de prioridad\n\n- Usá \"alta\" para reclamos importantes o intención clara de compra inmediata.\n- Usá \"media\" para consultas activas que necesitan seguimiento o clientes que evalúan opciones.\n- Usá \"baja\" para consultas exploratorias sin urgencia.\n- La prioridad debe ser coherente con la situación actual del cliente.\n\n## Reglas para utilizar las compras\n\n- Utilizá únicamente las compras incluidas en el contexto de compras verificadas que aparece al final del prompt.\n- Considerá una compra asociada al cliente solo cuando exista una coincidencia verificable con sus datos.\n- Si el contexto indica que no se encontraron compras asociadas de forma verificable, no afirmes que el cliente compró anteriormente.\n- No atribuyas al cliente compras de otras personas aunque sus nombres o productos sean similares.\n- Si hay compras verificadas, utilizá producto, categoría, talle, fecha de compra, canal de venta y monto cuando sean pertinentes para la consulta.\n- Si el cliente presenta un reclamo, priorizá la atención posventa. No prometas garantías, reembolsos ni soluciones que no estén confirmadas en los datos disponibles.\n\n## Reglas de calidad de los datos\n\n- No inventes precios, stock, pedidos, compras, productos ni información personal.\n- Si no hay información suficiente, utilizá valores neutrales y recomendá una acción prudente.\n- En \"objecion\", describí una objeción real detectada o devolvé una cadena vacía (\"\") si no existe.\n- En \"mensaje_resumen\", resumí brevemente la consulta o necesidad actual del cliente.\n- En \"accion_recomendada\", indicá una acción concreta y coherente con la intención, la etapa del embudo y la prioridad.\n- Devolvé exactamente las siete claves indicadas, con nombres escritos tal como aparecen en el esquema y valores de texto válidos en JSON.\n- No agregues otras claves ni comentarios fuera del objeto JSON.\n## Mensaje actual del cliente\n{{ $('02 - Preparar datos del cliente').first().json.Mensaje }}\n\nLa intención, el sentimiento, la etapa del embudo y la prioridad deben determinarse principalmente por el mensaje actual. Usá el historial solo como contexto. Un reclamo anterior no debe clasificarse como reclamo actual si el mensaje más reciente del cliente trata otro tema.\n\n## Historial de conversación\n{{ $('Edit Fields 07 - Preparar historial conversación').first().json.historial_conversacion || 'No hay historial disponible.' }}\n\n## Contexto de compras verificadas del cliente\n{{ $('Edit Fields 07 - Preparar historial conversación').first().json.historial_compras || 'No se encontraron compras asociadas de forma verificable.' }}\n                   "
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -672,
+        288
+      ],
+      "id": "f968fd17-b985-4038-9550-8725371352aa",
+      "name": "Message a model 11 - Analizar conversación con IA"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "mensajes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('05A - Crear cliente nuevo').first().json.id }}"
+            },
+            {
+              "fieldId": "canal",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "direccion",
+              "fieldValue": "entrante"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "={{ $('02 - Preparar datos del cliente').first().json.Mensaje }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        32
+      ],
+      "id": "5f8e9cb4-3a23-4ebd-b40e-806517c11446",
+      "name": "06A - Registrar mensaje de cliente nuevo"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43044143-3893-48e7-a95a-39ffd3846330",
+              "leftValue": "={{ $('13 - Guardar análisis en Supabase').first().json.intencion }}",
+              "rightValue": "intencion_compra",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        288
+      ],
+      "id": "1766eb32-adb4-4e7c-8e80-f72d9f5072be",
+      "name": "If 14 - ¿Corresponde crear oportunidad?"
+    },
+    {
+      "parameters": {
+        "formTitle": "UrbanStep - Registro de clientes",
+        "formDescription": "Completá tus datos para conocer nuestros modelos de zapatillas y recibir asesoramiento.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre completo",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Correo electrónico",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Telefono"
+            },
+            {
+              "fieldLabel": "¿Qué modelos te interesan?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -1728,
+        1264
+      ],
+      "id": "f6e8c21a-9e01-44d3-bc17-5f31bb796e4f",
+      "name": "On form submission UrbanStep - Registro de clientes"
+    },
+    {
+      "parameters": {
+        "formTitle": "UrbanStep - Encuesta de satisfacción",
+        "formDescription": "Queremos conocer tu experiencia con UrbanStep. Tu opinión nos ayuda a mejorar.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre completo",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "¿Qué tan probable es que recomiendes UrbanStep a un amigo o familiar?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "0"
+                  },
+                  {
+                    "option": "1"
+                  },
+                  {
+                    "option": "2"
+                  },
+                  {
+                    "option": "3"
+                  },
+                  {
+                    "option": "4"
+                  },
+                  {
+                    "option": "5"
+                  },
+                  {
+                    "option": "6"
+                  },
+                  {
+                    "option": "7"
+                  },
+                  {
+                    "option": "8"
+                  },
+                  {
+                    "option": "9"
+                  },
+                  {
+                    "option": "10"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "¿Cómo fue tu experiencia?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Muy buena"
+                  },
+                  {
+                    "option": "Buena"
+                  },
+                  {
+                    "option": "Regular"
+                  },
+                  {
+                    "option": "Mala"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "¿Qué podríamos mejorar?"
+            },
+            {
+              "fieldLabel": "Correo electrónico",
+              "fieldType": "email",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -1536,
+        1536
+      ],
+      "id": "fc1a64d1-1b36-41b7-9252-55db6a06ab9d",
+      "name": "On form submission formulario NPS de UrbanStep"
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "lastName": "={{ $('On form submission UrbanStep - Registro de clientes').first().json[\"Nombre completo\"] }}",
+        "additionalFields": {
+          "Email": "={{ $('On form submission UrbanStep - Registro de clientes').first().json[\"Correo electrónico\"] }}"
+        }
+      },
+      "type": "n8n-nodes-base.zohoCrm",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        1184
+      ],
+      "id": "e12eeced-8d9b-4db6-b49e-5d086abaff40",
+      "name": "Create or Update a contact"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json['Nombre completo'] }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json['Correo electrónico'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        1344
+      ],
+      "id": "e66cf1f6-7974-479a-aa4f-c870060269fd",
+      "name": "Create a row1 02 - Guardar cliente del formulario en Supabase"
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "dealName": "={{ 'UrbanStep - Oportunidad de compra - ' + $now.toFormat('dd-MM-yyyy HH:mm') }}",
+        "stage": "={{ \"Clasificación\" }}",
+        "additionalFields": {
+          "Closing_Date": "={{ $now.plus({ days: 7 }).toFormat('yyyy-MM-dd') }}"
+        }
+      },
+      "type": "n8n-nodes-base.zohoCrm",
+      "typeVersion": 1,
+      "position": [
+        288,
+        416
+      ],
+      "id": "8cf8fa79-a41f-4141-8469-be6fd391766d",
+      "name": "Create a deal"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('15 - Buscar email cliente').first().json.email }}",
+        "subject": "Seguimiento de tu consulta - UrbanStep.",
+        "message": "Hola,  ¡Gracias por tu interés en UrbanStep!  Queremos saber si necesitás más información sobre nuestros modelos de zapatillas o ayuda para elegir tu próximo par.  Respondé este correo y te ayudaremos.  Saludos, Equipo UrbanStep",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        592
+      ],
+      "id": "9e450223-f3ef-4f80-b518-bc78df2bdb03",
+      "name": "Send a message Gmail - Enviar seguimiento al cliente."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eb62f050-5a87-4c01-8106-4395ab593c67",
+              "leftValue": "={{ !!$json.email && ['consulta_producto', 'consulta_general', 'seguimiento'].includes($('13 - Guardar análisis en Supabase').first().json.intencion) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        672
+      ],
+      "id": "9558ccfe-5110-410e-b1b2-67e85dbbe6f5",
+      "name": "If 16 - ¿Cliente tiene email?."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "get",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('13 - Guardar análisis en Supabase').first().json.cliente_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        672
+      ],
+      "id": "9ffb4b10-5e96-4c33-b2db-812831380b73",
+      "name": "15 - Buscar email cliente"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "YOUR_SLACK_CHANNEL_ID",
+          "mode": "list",
+          "cachedResultName": "your-channel"
+        },
+        "text": "🚨 *UrbanStep – Alerta interna*  Se detectó una interacción de un cliente que requiere seguimiento.  Revisar el análisis de la conversación en Supabase y realizar la acción recomendada para continuar la atención.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        272,
+        192
+      ],
+      "id": "05c5cbbe-f08a-4a81-be04-186de92efdb2",
+      "name": "Send a message"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst datos = $input.first().json;\n\nreturn [{\n  json: {\n    historial_conversacion:\n      datos.historial_conversacion || \"No hay historial disponible.\",\n    contexto_compras:\n      datos.historial_compras || \"No hay compras anteriores registradas.\"\n  }\n}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        160
+      ],
+      "id": "34f983c7-1a9a-447d-9b1a-64f30608ef36",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "compras_clientes",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json[\"Correo electrónico\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1088,
+        960
+      ],
+      "id": "d888d37c-99cc-4d1b-b065-58510685c028",
+      "name": "Get Many — compras_clientes",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $json[\"Correo electrónico\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1488,
+        1264
+      ],
+      "id": "6e89a66e-d85b-499b-a8d8-637ff9be9efe",
+      "name": "01 - Buscar cliente por email",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bf3b1472-5c4c-4f2e-b263-9bdb7437d5ab",
+              "name": "contexto_compras",
+              "value": "={{    'Cliente: ' + ($json.nombre || 'No disponible') +   '\\nProducto: ' + ($json.producto || 'No disponible') +   '\\nCategoría: ' + ($json.categoria || 'No disponible') +   '\\nTalle: ' + ($json.talle || 'No disponible') +   '\\nFecha de compra: ' + ($json.fecha_compra || 'No disponible') +   '\\nCanal de venta: ' + ($json.canal_venta || 'No disponible') +   '\\nMonto: ' + ($json.monto ?? 'No disponible') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -848,
+        928
+      ],
+      "id": "1c61dce7-d67d-4637-b2bd-6b0b987458b3",
+      "name": "Preparar contexto de compra web"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "mensajes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('01 - Buscar cliente por email').first().json.id }}"
+            },
+            {
+              "fieldId": "canal",
+              "fieldValue": "web"
+            },
+            {
+              "fieldId": "direccion",
+              "fieldValue": "entrante"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json[\"¿Qué modelos te interesan?\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        912
+      ],
+      "id": "ad513035-0afa-46a4-be23-6711db5e3653",
+      "name": "Guardar consulta web en mensajes"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "Gemini 3.5 Flash Lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analizá el historial de conversación y el contexto de compras verificadas del cliente de UrbanStep para determinar su situación comercial actual.\n\nDevolvé únicamente un objeto JSON válido, sin Markdown ni explicaciones, con exactamente estas siete claves y valores:\n\n{\n  \"mensaje_resumen\": \"resumen breve de la consulta actual\",\n  \"sentimiento\": \"positivo, neutral o negativo\",\n  \"intencion\": \"consulta_general, consulta_producto, intencion_compra, reclamo o seguimiento\",\n  \"etapa_funnel\": \"descubrimiento, consideracion, decision o posventa\",\n  \"objecion\": \"objeción detectada o cadena vacía si no existe\",\n  \"prioridad\": \"baja, media o alta\",\n  \"accion_recomendada\": \"próxima acción concreta para el equipo comercial\"\n}\n\n## Reglas de clasificación\n\n1. Cliente exploratorio: solicita información general y todavía no muestra intención clara de compra. Usá intención \"consulta_general\" o \"consulta_producto\", según corresponda, y etapa_funnel \"descubrimiento\".\n\n2. Cliente que evalúa opciones: compara modelos, precios, talles, marcas, disponibilidad u otras características sin haber decidido comprar. Usá intención \"consulta_producto\" y etapa_funnel \"consideracion\".\n\n3. Cliente listo para comprar: expresa claramente que quiere comprar, realizar un pedido, reservar un producto o avanzar para concretar la compra. Usá intención \"intencion_compra\", etapa_funnel \"decision\" y prioridad \"alta\".\n\n4. Cliente recurrente: si existen compras anteriores verificadas, considerá los productos, fechas, canales y montos disponibles. Si consulta por una compra anterior, recomendá una acción pertinente. No supongas que quiere comprar nuevamente si no lo expresa.\n\n5. Cliente con reclamo: expresa disconformidad con un producto, pedido o atención. Usá intención \"reclamo\", sentimiento \"negativo\", etapa_funnel \"posventa\" y recomendá atender el problema antes de ofrecer una venta.\n\n6. Seguimiento: usá intención \"seguimiento\" cuando el mensaje actual corresponda a una consulta posterior o a la continuación de una gestión previa que no encaje mejor en las categorías anteriores.\n\n## Reglas para distinguir consultas de intención de compra\n\n- Si el cliente solamente pregunta qué modelos hay disponibles, consulta por stock, precios, talles o características, usá \"consulta_producto\" o \"consulta_general\", según corresponda. No uses \"intencion_compra\" solo porque repite preguntas.\n- Usá \"intencion_compra\" únicamente cuando el cliente exprese claramente que quiere comprar, realizar un pedido, reservar un producto o avanzar para concretar la compra.\n- Preguntar por modelos, pedir un catálogo o consultar precios no significa, por sí solo, que el cliente haya decidido comprar.\n- Si el cliente pregunta cómo realizar un pedido o manifiesta claramente que quiere concretar una compra, clasificá la intención como \"intencion_compra\", la etapa como \"decision\" y la prioridad como \"alta\".\n- Si el cliente compara opciones sin decidirse a comprar, usá etapa_funnel \"consideracion\" y una intención distinta de \"intencion_compra\".\n- Basá la clasificación en el mensaje más reciente del cliente y en el contexto relevante del historial. No mantengas automáticamente una intención anterior si la consulta actual cambió.\n- No confundas la etapa del embudo con la intención: un cliente puede estar en \"consideracion\" y tener intención \"consulta_producto\", sin haber decidido comprar.\n- Si el historial contiene mensajes del asistente, no los interpretes como si fueran afirmaciones del cliente.\n\n## Reglas de prioridad\n\n- Usá \"alta\" para reclamos importantes o intención clara de compra inmediata.\n- Usá \"media\" para consultas activas que necesitan seguimiento o clientes que evalúan opciones.\n- Usá \"baja\" para consultas exploratorias sin urgencia.\n- La prioridad debe ser coherente con la situación actual del cliente.\n\n## Reglas para utilizar las compras\n\n- Utilizá únicamente las compras incluidas en el contexto de compras verificadas que aparece al final del prompt.\n- Considerá una compra asociada al cliente solo cuando exista una coincidencia verificable con sus datos.\n- Si el contexto indica que no se encontraron compras asociadas de forma verificable, no afirmes que el cliente compró anteriormente.\n- No atribuyas al cliente compras de otras personas aunque sus nombres o productos sean similares.\n- Si hay compras verificadas, utilizá producto, categoría, talle, fecha de compra, canal de venta y monto cuando sean pertinentes para la consulta.\n- Si el cliente presenta un reclamo, priorizá la atención posventa. No prometas garantías, reembolsos ni soluciones que no estén confirmadas en los datos disponibles.\n\n## Reglas de calidad de los datos\n\n- No inventes precios, stock, pedidos, compras, productos ni información personal.\n- Si no hay información suficiente, utilizá valores neutrales y recomendá una acción prudente.\n- En \"objecion\", describí una objeción real detectada o devolvé una cadena vacía (\"\") si no existe.\n- En \"mensaje_resumen\", resumí brevemente la consulta o necesidad actual del cliente.\n- En \"accion_recomendada\", indicá una acción concreta y coherente con la intención, la etapa del embudo y la prioridad.\n- Devolvé exactamente las siete claves indicadas, con nombres escritos tal como aparecen en el esquema y valores de texto válidos en JSON.\n- No agregues otras claves ni comentarios fuera del objeto JSON.\n\n## Historial de conversación\n{{ $('Guardar consulta web en mensajes').first().json.contenido }}\n\n## Contexto de compras verificadas del cliente\n{{ $('Preparar contexto de compra web').first().json.contexto_compras }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        912
+      ],
+      "id": "402fc28c-fc30-4c2f-8bce-7aa30690a907",
+      "name": "Analizar consulta web con IA"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "analisis_ia",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('01 - Buscar cliente por email').first().json.id }}"
+            },
+            {
+              "fieldId": "mensaje_resumen",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).mensaje_resumen }}"
+            },
+            {
+              "fieldId": "sentimiento",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).sentimiento }}"
+            },
+            {
+              "fieldId": "intencion",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).intencion }}"
+            },
+            {
+              "fieldId": "etapa_funnel",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).etapa_funnel }}"
+            },
+            {
+              "fieldId": "objecion",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).objecion }}"
+            },
+            {
+              "fieldId": "prioridad",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).prioridad }}"
+            },
+            {
+              "fieldId": "accion_recomendada",
+              "fieldValue": "={{ JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text).accion_recomendada }}"
+            },
+            {
+              "fieldId": "respuesta_json",
+              "fieldValue": "={{ JSON.stringify(JSON.parse($('Analizar consulta web con IA').first().json.content.parts[0].text)) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        32,
+        912
+      ],
+      "id": "3ac7666d-de7b-4502-88e7-e88d564cdf1a",
+      "name": "Guardar análisis web en Supabase"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "acciones_log",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $if($(\"05A - Crear cliente nuevo\").isExecuted, $(\"05A - Crear cliente nuevo\").first().json.id, $(\"03 - Buscar cliente en Supabase\").first().json.id) }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "={{ $('13 - Guardar análisis en Supabase').first().json.accion_recomendada || 'sin_accion_recomendada' }}"
+            },
+            {
+              "fieldId": "motivo",
+              "fieldValue": "={{ $('13 - Guardar análisis en Supabase').first().json.mensaje_resumen }}"
+            },
+            {
+              "fieldId": "resultado",
+              "fieldValue": "Pendiente de ejecución"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "pendiente"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        656
+      ],
+      "id": "a3803616-1329-46f2-8287-f4d853034208",
+      "name": "15-Registrar acción recomendada en Supabase"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ca992601-8881-47c7-8aea-8914b744423d",
+              "leftValue": "={{ $('13 - Guardar análisis en Supabase').first().json.intencion }}",
+              "rightValue": "reclamo",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -608,
+        656
+      ],
+      "id": "6dde7bf2-d5f1-403b-a712-cb9e76ff7304",
+      "name": "17 - ¿Es un reclamo?"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "YOUR_SLACK_CHANNEL_ID",
+          "mode": "list",
+          "cachedResultName": "your-channel"
+        },
+        "text": "=🚨 *UrbanStep – RECLAMO PRIORITARIO*  Se detectó un reclamo que requiere atención prioritaria.  *Resumen:* {{ $('13 - Guardar análisis en Supabase').first().json.mensaje_resumen }}  *Prioridad:* {{ $('13 - Guardar análisis en Supabase').first().json.prioridad }}  *Acción recomendada:* {{ $('13 - Guardar análisis en Supabase').first().json.accion_recomendada }}  Revisar la conversación y gestionar el caso.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -416,
+        512
+      ],
+      "id": "61a2804d-f229-4de2-a181-faf0126b6c70",
+      "name": "18 - Notificar reclamo prioritario por Slack"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "Gemini 3.5 Flash Lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analizá esta respuesta de satisfacción de un cliente de UrbanStep.\n\nDatos recibidos:\n- Nombre: {{ $('02 - Guardar respuesta NPS en Supabase').first().json.nombre }}\n- Email: {{ $('02 - Guardar respuesta NPS en Supabase').first().json.email }}\n- Puntuación NPS (0 a 10): {{ $('02 - Guardar respuesta NPS en Supabase').first().json.puntuacion }}\n- Comentario: {{ $('02 - Guardar respuesta NPS en Supabase').first().json.comentario }}\n\nClasificá la respuesta usando exclusivamente los datos recibidos.\n\nDevolvé únicamente un objeto JSON válido con estos campos:\n{\n  \"mensaje_resumen\": \"resumen breve del comentario\",\n  \"sentimiento\": \"positivo_alto, positivo, neutral, negativo_medio o negativo_alto\",\n  \"intencion\": \"fidelizacion, sugerencia, observacion, post_venta o reclamo\",\n  \"etapa_funnel\": \"awareness, consideracion, decision o post-venta\",\n  \"objecion\": \"precio, stock, talle, envio, confianza, ninguna u otra\",\n  \"prioridad\": \"baja, media, alta\",\n  \"accion_recomendada\": \"acción concreta y breve\"\n}\n\nCriterios:\n- Puntuación 9 o 10: promotor; intención fidelizacion; recomendar agradecimiento, beneficio o referral.\n- Puntuación 7 u 8: revisar el comentario; si propone una mejora, intención sugerencia; si describe una experiencia neutra, intención observacion.\n- Puntuación 5 o 6: fricción; intención post_venta y recomendar seguimiento para resolver el inconveniente.\n- Puntuación 0 a 4: insatisfacción importante; si hay un problema concreto o reclamo, intención reclamo y prioridad alta; si no, intención post_venta y prioridad alta.\n- El comentario debe influir en la acción recomendada. No inventes compras, promesas, reembolsos ni datos que no estén presentes.\n- Clasificá etapa_funnel según los datos disponibles. Si el comentario describe un problema de experiencia o atención posterior, usá post-venta. No des por confirmada una compra si los datos no lo indican.\n- Identificá la objecion principal mencionada en el comentario: precio, stock, talle, envio, confianza, ninguna u otra. Si el problema es la falta de disponibilidad de un producto, usá stock. Si el problema principal es el talle, usá talle. Si no hay una objeción identificable, usá ninguna.\n- Los campos etapa_funnel y objecion deben estar siempre presentes y contener uno de los valores permitidos. No uses null ni cadenas vacías.\n- Cuando la respuesta NPS describa una mala experiencia previa, un reclamo, un problema de disponibilidad o atención, o solicite contacto para resolver un inconveniente, clasificá etapa_funnel como \"post-venta\", no como \"consideracion\".\n- No incluyas Markdown ni texto fuera del JSON."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        1872
+      ],
+      "id": "0e6e7b1b-0dc0-4d31-b68e-e312c7b951e4",
+      "name": "03 - Analizar satisfacción NPS con IA"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30c5ef23-0ccb-4a6c-9290-1c0bce2ea2d2",
+              "name": "analisis",
+              "value": "={{ JSON.parse($json.content.parts[0].text) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -608,
+        1872
+      ],
+      "id": "9cfa1932-fcf1-4e6f-8df3-aacfccb0930d",
+      "name": "04 - Estructurar análisis NPS"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "analisis_ia",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('03 - Buscar cliente para NPS').first().json.id }}"
+            },
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('03 - Buscar cliente para NPS').first().json.id }}"
+            },
+            {
+              "fieldId": "mensaje_resumen",
+              "fieldValue": "={{ JSON.parse($json.analisis).mensaje_resumen }}"
+            },
+            {
+              "fieldId": "sentimiento",
+              "fieldValue": "={{ JSON.parse($json.analisis).sentimiento }}"
+            },
+            {
+              "fieldId": "intencion",
+              "fieldValue": "={{ JSON.parse($json.analisis).intencion }}"
+            },
+            {
+              "fieldId": "prioridad",
+              "fieldValue": "={{ JSON.parse($json.analisis).prioridad }}"
+            },
+            {
+              "fieldId": "accion_recomendada",
+              "fieldValue": "={{ JSON.parse($json.analisis).accion_recomendada }}"
+            },
+            {
+              "fieldId": "respuesta_json",
+              "fieldValue": "={{ JSON.stringify(JSON.parse($json.analisis)) }}"
+            },
+            {
+              "fieldId": "etapa_funnel",
+              "fieldValue": "={{ JSON.parse($json.analisis).etapa_funnel }}"
+            },
+            {
+              "fieldId": "objecion",
+              "fieldValue": "={{ JSON.parse($json.analisis).objecion }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        1888
+      ],
+      "id": "40f10998-d055-429c-bebf-079191f4b19b",
+      "name": "05 - Guardar análisis NPS en Supabase"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('02 - Guardar respuesta NPS en Supabase').first().json.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1376,
+        1840
+      ],
+      "id": "54404dd1-ada9-40ac-8f19-334f9aa12f79",
+      "name": "03 - Buscar cliente para NPS",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "807680bf-e085-4514-bafb-1ce4b56ac01e",
+              "leftValue": "={{ Number($('02 - Guardar respuesta NPS en Supabase').first().json.puntuacion) }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1072,
+        1536
+      ],
+      "id": "7e5f2e5c-f462-4b9a-81ff-6e13becea988",
+      "name": "03 - ¿NPS requiere seguimiento?"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "acciones_log",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('03 - Buscar cliente para NPS').first().json.id }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "seguimiento_nps_prioritario"
+            },
+            {
+              "fieldId": "motivo",
+              "fieldValue": "Puntuación NPS menor que 7; requiere seguimiento"
+            },
+            {
+              "fieldId": "resultado",
+              "fieldValue": "Pendiente de seguimiento"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "pendiente"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        1520
+      ],
+      "id": "80cec8eb-2bcb-48aa-a41e-2778c147a47a",
+      "name": "04A - Registrar seguimiento NPS prioritario."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "acciones_log",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('03 - Buscar cliente para NPS').isExecuted ? $('03 - Buscar cliente para NPS').first().json.id : null }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "seguimiento_nps_no_prioritario"
+            },
+            {
+              "fieldId": "motivo",
+              "fieldValue": "Puntuación NPS de 7 a 10; agradecer y solicitar comentarios si corresponde"
+            },
+            {
+              "fieldId": "resultado",
+              "fieldValue": "Pendiente de seguimiento"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "pendiente"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        1696
+      ],
+      "id": "6167786b-b761-4882-b38f-6ff52e8cc5e6",
+      "name": "04B - Registrar seguimiento NPS no prioritario"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "respuestas_nps",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $json[\"Nombre completo\"] }}"
+            },
+            {
+              "fieldId": "puntuacion",
+              "fieldValue": "={{ Number($json[\"¿Qué tan probable es que recomiendes UrbanStep a un amigo o familiar?\"]) }}"
+            },
+            {
+              "fieldId": "comentario",
+              "fieldValue": "={{ $json[\"¿Qué podríamos mejorar?\"] || \"\" }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json[\"Correo electrónico\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        1536
+      ],
+      "id": "522719bd-f2f8-4c6a-93b3-fc339015ec56",
+      "name": "02 - Guardar respuesta NPS en Supabase"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7c43bc60-6c17-45b1-b5bf-b8acc77f28a2",
+              "leftValue": "={{ $('Guardar análisis web en Supabase').first().json.intencion }}",
+              "rightValue": "intencion_compra",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        272,
+        912
+      ],
+      "id": "e9cd5b9e-d874-4391-985c-053344c4b4b1",
+      "name": "Web - ¿Corresponde crear oportunidad?"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "oportunidades",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('Guardar análisis web en Supabase').first().json.cliente_id }}"
+            },
+            {
+              "fieldId": "producto_interes",
+              "fieldValue": "={{ $('Guardar análisis web en Supabase').first().json.mensaje_resumen }}"
+            },
+            {
+              "fieldId": "etapa",
+              "fieldValue": "={{ $('Guardar análisis web en Supabase').first().json.etapa_funnel }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "abierta"
+            },
+            {
+              "fieldId": "valor_estimado",
+              "fieldValue": "0"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        480,
+        896
+      ],
+      "id": "01175fef-1243-4587-a14c-d7ccc7f170df",
+      "name": "Web - Registrar oportunidad en Supabase"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "YOUR_SLACK_CHANNEL_ID",
+          "mode": "list",
+          "cachedResultName": "your-channel"
+        },
+        "text": "={{ '🛍️ NUEVA OPORTUNIDAD WEB - URBANSTEP\\nCliente ID: ' + (\n  (\n    $('01 - Buscar cliente por email').isExecuted &&\n    $('01 - Buscar cliente por email').all().length > 0 &&\n    $('01 - Buscar cliente por email').first().json.id != null\n  )\n    ? $('01 - Buscar cliente por email').first().json.id\n    : (\n        $('Obtener id del email').isExecuted &&\n        $('Obtener id del email').all().length > 0 &&\n        $('Obtener id del email').first().json.id != null\n      )\n        ? $('Obtener id del email').first().json.id\n        : 'No disponible'\n) + '\\nConsulta: ' + ($('Create a deal1').isExecuted ? ($('Create a deal1').first().json.Description ?? 'Consulta web registrada') : 'Consulta web registrada') + '\\nEstado: Oportunidad abierta\\nRevisar el contacto y continuar el seguimiento comercial.' }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        144,
+        1216
+      ],
+      "id": "4253b7b4-9b0a-4ddf-9401-22330d8dd572",
+      "name": "Send a message1"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "acciones_log",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('Guardar análisis web en Supabase').first().json.cliente_id }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "seguimiento_comercial_web"
+            },
+            {
+              "fieldId": "motivo",
+              "fieldValue": "={{ $('Guardar análisis web en Supabase').first().json.mensaje_resumen }}"
+            },
+            {
+              "fieldId": "resultado",
+              "fieldValue": "Pendiente de seguimiento comercial"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "pendiente"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        304,
+        1440
+      ],
+      "id": "69c432cb-345a-40c0-afd6-120252685618",
+      "name": "Web - Registrar seguimiento comercial en Supabase"
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "dealName": "={{ 'UrbanStep - Oportunidad web - ' + $now.toFormat('dd-MM-yyyy HH:mm') }}",
+        "stage": "={{ \"Clasificación\" }}",
+        "additionalFields": {
+          "Amount": 0,
+          "Closing_Date": "={{ $now.plus({ days: 7 }).toFormat('yyyy-MM-dd') }}",
+          "Description": "={{ $('Guardar análisis web en Supabase').isExecuted ? ($('Guardar análisis web en Supabase').first().json.mensaje_resumen || 'Consulta web registrada desde el formulario UrbanStep.') : 'Consulta web registrada desde el formulario UrbanStep.' }}"
+        }
+      },
+      "type": "n8n-nodes-base.zohoCrm",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        1216
+      ],
+      "id": "5636d678-9b64-4f72-bcd9-80a39b38af14",
+      "name": "Create a deal1"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://www.zohoapis.com/crm/v8/Deals/' + $('Create a deal1').first().json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": [\n    {\n      \"Contact_Name\": {\n        \"id\": \"{{ $('Buscar contacto existente en Zoho').first().json.data[0].id.toString() }}\"\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        1216
+      ],
+      "id": "f53ff795-0a12-46b9-a165-ee8011199e51",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telegram_user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.telegram_user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        -240
+      ],
+      "id": "abacd75b-316c-4c06-8ef1-18781e3ffd4a",
+      "name": "03 - Buscar cliente en Supabase",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "772c5ee3-2f1c-4ffb-9abe-3095525f295d",
+              "name": "Nombre",
+              "value": "={{ $json.message.from.first_name }} ",
+              "type": "string"
+            },
+            {
+              "id": "a2534eb3-dc5e-41a2-b511-6f3eb07434f0",
+              "name": "telegram_user_id",
+              "value": "={{ $json.message.from.id.toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "bb8ddcd8-c403-43c1-bfc4-0ae0af026229",
+              "name": "Mensaje",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1056,
+        -240
+      ],
+      "id": "482b5738-5152-4e78-a3aa-577b3fc2e5a5",
+      "name": "02 - Preparar datos del cliente"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "compras_clientes",
+        "orderBy": "fecha_compra.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('03 - Buscar cliente en Supabase').first().json.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -256
+      ],
+      "id": "4f320f21-e0d6-483a-b379-91d1838b61e3",
+      "name": "06B - Buscar compras anteriores del cliente",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "analisis_ia",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "mensaje_resumen",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.mensaje_resumen }}"
+            },
+            {
+              "fieldId": "sentimiento",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.sentimiento }}"
+            },
+            {
+              "fieldId": "intencion",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.intencion }}"
+            },
+            {
+              "fieldId": "etapa_funnel",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.etapa_funnel }}"
+            },
+            {
+              "fieldId": "objecion",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.objecion }}"
+            },
+            {
+              "fieldId": "prioridad",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.prioridad }}"
+            },
+            {
+              "fieldId": "accion_recomendada",
+              "fieldValue": "={{ $('12 - Preparar análisis estructurado').first().json.analisis.accion_recomendada }}"
+            },
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $if($(\"05A - Crear cliente nuevo\").isExecuted, $(\"05A - Crear cliente nuevo\").first().json.id, $(\"03 - Buscar cliente en Supabase\").first().json.id) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        288
+      ],
+      "id": "1ac7894d-3d47-4147-bdcb-42367ecf5e7e",
+      "name": "13 - Guardar análisis en Supabase"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1f62068b-ea4e-49b0-9804-ae27dc720bcd",
+              "name": "analisis",
+              "value": "={{ JSON.parse($json.content.parts[0].text) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -336,
+        288
+      ],
+      "id": "161d19c0-14b5-493a-8b74-9941732e3601",
+      "name": "12 - Preparar análisis estructurado"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "mensajes",
+        "orderBy": "fecha.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "cliente_id",
+              "condition": "eq",
+              "keyValue": "={{ $if($(\"05A - Crear cliente nuevo\").isExecuted, $(\"05A - Crear cliente nuevo\").first().json.id, $(\"03 - Buscar cliente en Supabase\").first().json.id) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        -256
+      ],
+      "id": "8635c297-cdab-49ca-95a0-edea9f4b966c",
+      "name": "06 recuperar el historial anterior del cliente desde Supabase"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $('02 - Preparar datos del cliente').first().json.Nombre }}"
+            },
+            {
+              "fieldId": "telegram_user_id",
+              "fieldValue": "={{ $('02 - Preparar datos del cliente').first().json.telegram_user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        32
+      ],
+      "id": "eeb194d9-0c76-49eb-914e-fcf6ec7bbb8a",
+      "name": "05A - Crear cliente nuevo"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "oportunidades",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('13 - Guardar análisis en Supabase').first().json.cliente_id }}"
+            },
+            {
+              "fieldId": "producto_interes",
+              "fieldValue": "={{ $('13 - Guardar análisis en Supabase').first().json.mensaje_resumen }}"
+            },
+            {
+              "fieldId": "etapa",
+              "fieldValue": "={{ $('13 - Guardar análisis en Supabase').first().json.etapa_funnel }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "abierta"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        272,
+        -16
+      ],
+      "id": "11b71889-3d21-4827-a9ab-1a7f42cbef54",
+      "name": "15A - Registrar oportunidad de compra en Supabase"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "acciones_log",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('15-Registrar acción recomendada en Supabase').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "resultado",
+              "fieldValue": "No se envió email: el cliente no tiene una dirección registrada. Seguimiento pendiente por otro canal."
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "pendiente"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        160,
+        768
+      ],
+      "id": "3a05653c-f691-4364-a430-556097018529",
+      "name": "19 - Actualizar acción si no tiene email"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5a758181-46d1-411e-8616-e42a8a824332",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1264,
+        1280
+      ],
+      "id": "c94ecfc5-2db3-42c4-b233-22f294e8ce37",
+      "name": "If buscar cliente por email"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "oportunidades",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $('Create a row1 02 - Guardar cliente del formulario en Supabase').isExecuted ? $('Create a row1 02 - Guardar cliente del formulario en Supabase').first().json.id : $('01 - Buscar cliente por email').first().json.id }}"
+            },
+            {
+              "fieldId": "etapa",
+              "fieldValue": "Clasificación"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Abierta"
+            },
+            {
+              "fieldId": "valor_estimado",
+              "fieldValue": "0"
+            },
+            {
+              "fieldId": "producto_interes",
+              "fieldValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json['¿Qué modelos te interesan?'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        592,
+        1280
+      ],
+      "id": "3769d2bc-2b64-48d4-9d61-fc14c3f17511",
+      "name": "Web - Registrar oportunidad en Supabase1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "e9837bae-bf6d-4467-83cd-cefd9d65b004",
+              "leftValue": "={{ $(\"Web - Registrar oportunidad en Supabase\").isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        352,
+        1264
+      ],
+      "id": "215920fb-611b-4a49-9ab2-cbaefc07a980",
+      "name": "Web - ¿Ya se registró la oportunidad?"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.zohoapis.com/crm/v8/Contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $('On form submission UrbanStep - Registro de clientes').first().json['Correo electrónico'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -160,
+        1216
+      ],
+      "id": "27136a05-6f46-4f0d-8a39-527c0f2d0fd9",
+      "name": "Buscar contacto existente en Zoho"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -928,
+        304
+      ],
+      "id": "dfb85e50-3c66-41e8-9119-cd7888c11ea1",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "getAll",
+        "projectRef": "YOUR_SUPABASE_PROJECT_REF",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('On form submission UrbanStep - Registro de clientes').first().json['Correo electrónico'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        1344
+      ],
+      "id": "6351056f-2f4e-4151-b6f6-61f77743eebb",
+      "name": "Obtener id del email"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "01 - Recibir mensaje Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "02 - Preparar datos del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If. 04 - ¿Existe el cliente?": {
+      "main": [
+        [
+          {
+            "node": "Create a row 05 - Registrar mensaje entrante",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05A - Crear cliente nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row 05 - Registrar mensaje entrante": {
+      "main": [
+        [
+          {
+            "node": "06B - Buscar compras anteriores del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields 07 - Preparar historial conversación": {
+      "main": [
+        [
+          {
+            "node": "Message a model 08 - Generar respuesta con Gemini",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model 08 - Generar respuesta con Gemini": {
+      "main": [
+        [
+          {
+            "node": "Send a text message 09 - Enviar respuesta por Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message 09 - Enviar respuesta por Telegram": {
+      "main": [
+        [
+          {
+            "node": "Create a row 10 - Registrar respuesta saliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row 10 - Registrar respuesta saliente": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Message a model 11 - Analizar conversación con IA": {
+      "main": [
+        [
+          {
+            "node": "12 - Preparar análisis estructurado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06A - Registrar mensaje de cliente nuevo": {
+      "main": [
+        [
+          {
+            "node": "06 recuperar el historial anterior del cliente desde Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If 14 - ¿Corresponde crear oportunidad?": {
+      "main": [
+        [
+          {
+            "node": "15A - Registrar oportunidad de compra en Supabase",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a deal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "15-Registrar acción recomendada en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission UrbanStep - Registro de clientes": {
+      "main": [
+        [
+          {
+            "node": "01 - Buscar cliente por email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission formulario NPS de UrbanStep": {
+      "main": [
+        [
+          {
+            "node": "02 - Guardar respuesta NPS en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Update a contact": {
+      "main": [
+        [
+          {
+            "node": "Create a deal1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If 16 - ¿Cliente tiene email?.": {
+      "main": [
+        [
+          {
+            "node": "Send a message Gmail - Enviar seguimiento al cliente.",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "19 - Actualizar acción si no tiene email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15 - Buscar email cliente": {
+      "main": [
+        [
+          {
+            "node": "If 16 - ¿Cliente tiene email?.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Many — compras_clientes": {
+      "main": [
+        [
+          {
+            "node": "Preparar contexto de compra web",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1 02 - Guardar cliente del formulario en Supabase": {
+      "main": [
+        [
+          {
+            "node": "Obtener id del email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 - Buscar cliente por email": {
+      "main": [
+        [
+          {
+            "node": "If buscar cliente por email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar contexto de compra web": {
+      "main": [
+        [
+          {
+            "node": "Guardar consulta web en mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar consulta web en mensajes": {
+      "main": [
+        [
+          {
+            "node": "Analizar consulta web con IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar consulta web con IA": {
+      "main": [
+        [
+          {
+            "node": "Guardar análisis web en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15-Registrar acción recomendada en Supabase": {
+      "main": [
+        [
+          {
+            "node": "17 - ¿Es un reclamo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17 - ¿Es un reclamo?": {
+      "main": [
+        [
+          {
+            "node": "18 - Notificar reclamo prioritario por Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "15 - Buscar email cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - Analizar satisfacción NPS con IA": {
+      "main": [
+        [
+          {
+            "node": "04 - Estructurar análisis NPS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 - Estructurar análisis NPS": {
+      "main": [
+        [
+          {
+            "node": "05 - Guardar análisis NPS en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - Buscar cliente para NPS": {
+      "main": [
+        [
+          {
+            "node": "03 - Analizar satisfacción NPS con IA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "03 - ¿NPS requiere seguimiento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - ¿NPS requiere seguimiento?": {
+      "main": [
+        [
+          {
+            "node": "04A - Registrar seguimiento NPS prioritario.",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04B - Registrar seguimiento NPS no prioritario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 - Guardar respuesta NPS en Supabase": {
+      "main": [
+        [
+          {
+            "node": "03 - Buscar cliente para NPS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar análisis web en Supabase": {
+      "main": [
+        [
+          {
+            "node": "Web - ¿Corresponde crear oportunidad?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web - ¿Corresponde crear oportunidad?": {
+      "main": [
+        [
+          {
+            "node": "Web - Registrar oportunidad en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web - Registrar seguimiento comercial en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web - Registrar oportunidad en Supabase": {
+      "main": [
+        [
+          {
+            "node": "Create a deal1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a deal1": {
+      "main": [
+        [
+          {
+            "node": "Buscar contacto existente en Zoho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - Buscar cliente en Supabase": {
+      "main": [
+        [
+          {
+            "node": "If. 04 - ¿Existe el cliente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 - Preparar datos del cliente": {
+      "main": [
+        [
+          {
+            "node": "03 - Buscar cliente en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06B - Buscar compras anteriores del cliente": {
+      "main": [
+        [
+          {
+            "node": "06 recuperar el historial anterior del cliente desde Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13 - Guardar análisis en Supabase": {
+      "main": [
+        [
+          {
+            "node": "If 14 - ¿Corresponde crear oportunidad?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 - Preparar análisis estructurado": {
+      "main": [
+        [
+          {
+            "node": "13 - Guardar análisis en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 recuperar el historial anterior del cliente desde Supabase": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields 07 - Preparar historial conversación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05A - Crear cliente nuevo": {
+      "main": [
+        [
+          {
+            "node": "06A - Registrar mensaje de cliente nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If buscar cliente por email": {
+      "main": [
+        [
+          {
+            "node": "Get Many — compras_clientes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create or Update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row1 02 - Guardar cliente del formulario en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Web - ¿Ya se registró la oportunidad?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web - ¿Ya se registró la oportunidad?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Web - Registrar oportunidad en Supabase1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar contacto existente en Zoho": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Message a model 11 - Analizar conversación con IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener id del email": {
+      "main": [
+        [
+          {
+            "node": "Create or Update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d67b5942-6b16-4e30-b277-dd2cc12d1bd5",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "tags": []
+}
