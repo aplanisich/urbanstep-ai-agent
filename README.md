@@ -79,4 +79,18 @@ Este proyecto permitió integrar conocimientos de:
 
 ---
 
+## Evidencias del proyecto
+
+### Workflow de automatización en n8n
+![Workflow](screenshots/workflow-n8n.png)
+
+### Atención conversacional por Telegram
+![Telegram](screenshots/telegram.png)
+
+### Formulario web
+![Formulario web](screenshots/formulario-web.png)
+
+### Encuesta NPS
+![NPS](screenshots/nps.png)
+
 **Proyecto desarrollado como parte de la formación en Automatización con IA.**
